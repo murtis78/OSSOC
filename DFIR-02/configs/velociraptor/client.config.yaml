@@ -1,0 +1,105 @@
+# Velociraptor Client Configuration
+
+Client:
+  server_urls:
+    - https://velociraptor-server:8080/
+  
+  ca_certificate: |
+    -----BEGIN CERTIFICATE-----
+    # CA Certificate will be generated during initialization
+    -----END CERTIFICATE-----
+  
+  nonce: "Replace with generated nonce"
+  
+  writeback_darwin: /opt/velociraptor/data/client.config.yaml.tmp
+  writeback_linux: /opt/velociraptor/data/client.config.yaml.tmp
+  writeback_windows: C:\Program Files\Velociraptor\client.config.yaml.tmp
+  
+  max_poll: 600
+  max_poll_std: 30
+  
+  # Client identification
+  client_id: auto
+  
+  # Local buffer settings
+  local_buffer:
+    memory_size: 50000000  # 50MB
+    disk_size: 1000000000  # 1GB
+    filename_linux: /tmp/velociraptor_buffer
+    filename_windows: C:\temp\velociraptor_buffer
+    filename_darwin: /tmp/velociraptor_buffer
+  
+  # Compression settings
+  compression: gzip
+  
+  # Concurrency settings
+  concurrency: 2
+  
+  # Obfuscation settings
+  obfuscate_vql: false
+  
+  # Crypto settings
+  use_self_signed_ssl: true
+  
+  # Proxy settings
+  proxy: ""
+  
+  # DNS settings
+  use_system_proxy_settings: true
+  
+  # CPU and memory limits
+  cpu_limit: 25  # Percentage
+  memory_limit: 100000000  # 100MB
+  
+  # Update settings
+  version:
+    name: velociraptor
+    version: "0.7.0"
+  
+  # Windows specific settings
+  windows:
+    service_name: "Velociraptor"
+    service_description: "Velociraptor Digital Forensics and Incident Response"
+    install_path: "C:\\Program Files\\Velociraptor\\"
+    
+  # Linux specific settings  
+  linux:
+    service_name: "velociraptor"
+    install_path: "/opt/velociraptor/"
+    
+  # Darwin specific settings
+  darwin:
+    service_name: "com.velocidex.velociraptor"
+    install_path: "/usr/local/velociraptor/"
+
+# Logging configuration
+Logging:
+  output_directory: /opt/velociraptor/data/logs
+  separate_logs_per_component: true
+  rotation_time: 604800  # 7 days
+  max_age: 2592000      # 30 days
+  
+# Writeback configuration
+Writeback:
+  private_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    # Writeback Private Key will be generated during initialization
+    -----END RSA PRIVATE KEY-----
+
+# Monitoring settings
+monitoring:
+  enabled: true
+  frequency: 600  # 10 minutes
+  
+# Artifact collection settings
+artifacts:
+  definitions_dir: /opt/velociraptor/artifacts
+  max_memory: 1000000000  # 1GB
+  
+# Network settings
+network:
+  timeout: 600
+  connect_timeout: 10
+  expect_continue_timeout: 5
+  max_idle_conns: 100
+  max_idle_conns_per_host: 10

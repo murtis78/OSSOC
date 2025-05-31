@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for IRIS
+  iris-db:
+    image: postgres:15-alpine
+    container_name: iris-db
+    environment:
+      POSTGRES_DB: iris_db
+      POSTGRES_USER: ${POSTGRES_USER:-iris}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe!}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data/pgdata
+      - ./configs/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - dfir-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iris} -d iris_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for IRIS
+  iris-redis:
+    image: redis:7-alpine
+    container_name: iris-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-ChangeMe!}
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - dfir-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # DFIR IRIS Main Application
+  iris-web:
+    image: dfiriris/iris:latest
+    container_name: iris-web
+    environment:
+      # Database Configuration
+      POSTGRES_SERVER: iris-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iris_db
+      POSTGRES_USER: ${POSTGRES_USER:-iris}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe!}
+      
+      # Redis Configuration
+      REDIS_SERVER: iris-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-ChangeMe!}
+      
+      # IRIS Configuration
+      IRIS_SECRET_KEY: ${IRIS_SECRET_KEY:-your-super-secret-key-change-me}
+      IRIS_ADMIN_USER: ${IRIS_ADMIN_USER:-admin}
+      IRIS_ADMIN_PASSWORD: ${IRIS_ADMIN_PASSWORD:-ChangeMe!}
+      IRIS_ADMIN_EMAIL: ${IRIS_ADMIN_EMAIL:-admin@dfir.local}
+      
+      # SSL/TLS Configuration
+      IRIS_HTTPS: ${IRIS_HTTPS:-false}
+      IRIS_CERT_PATH: /opt/iris/certs/iris.crt
+      IRIS_KEY_PATH: /opt/iris/certs/iris.key
+      
+      # Velociraptor Integration
+      VELOCIRAPTOR_SERVER: velociraptor-server
+      VELOCIRAPTOR_PORT: 8080
+      VELOCIRAPTOR_API_PORT: 8001
+      VELOCIRAPTOR_USER: ${VELOCIRAPTOR_USER:-admin}
+      VELOCIRAPTOR_PASSWORD: ${VELOCIRAPTOR_PASSWORD:-ChangeMe!}
+    ports:
+      - "${IRIS_PORT:-8080}:8080"
+    volumes:
+      - ./configs/iris:/opt/iris/config:ro
+      - ./data/iris:/opt/iris/data
+      - ./certs:/opt/iris/certs:ro
+      - ./modules:/opt/iris/modules
+      - ./secrets:/opt/iris/secrets:ro
+    depends_on:
+      iris-db:
+        condition: service_healthy
+      iris-redis:
+        condition: service_healthy
+    networks:
+      - dfir-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Velociraptor Server
+  velociraptor-server:
+    image: velociraptor/velociraptor:latest
+    container_name: velociraptor-server
+    command: >
+      /bin/sh -c "
+        if [ ! -f /opt/velociraptor/config/server.config.yaml ]; then
+          velociraptor config generate --config_path /opt/velociraptor/config/server.config.yaml
+        fi &&
+        velociraptor --config /opt/velociraptor/config/server.config.yaml frontend -v
+      "
+    environment:
+      VELOCIRAPTOR_USER: ${VELOCIRAPTOR_USER:-admin}
+      VELOCIRAPTOR_PASSWORD: ${VELOCIRAPTOR_PASSWORD:-ChangeMe!}
+    ports:
+      - "${VELOCIRAPTOR_GUI_PORT:-8889}:8889"  # GUI
+      - "${VELOCIRAPTOR_API_PORT:-8001}:8001"  # API
+      - "${VELOCIRAPTOR_FRONTEND_PORT:-8080}:8080"  # Frontend
+    volumes:
+      - ./configs/velociraptor:/opt/velociraptor/config
+      - ./data/velociraptor:/opt/velociraptor/data
+      - ./certs:/opt/velociraptor/certs:ro
+      - ./secrets:/opt/velociraptor/secrets:ro
+    networks:
+      - dfir-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:8889/app/index.html", "-k"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Velociraptor Client (for testing)
+  velociraptor-client:
+    image: velociraptor/velociraptor:latest
+    container_name: velociraptor-client
+    command: >
+      /bin/sh -c "
+        sleep 30 &&
+        velociraptor --config /opt/velociraptor/config/client.config.yaml client -v
+      "
+    volumes:
+      - ./configs/velociraptor:/opt/velociraptor/config:ro
+      - ./data/velociraptor-client:/opt/velociraptor/data
+      - ./certs:/opt/velociraptor/certs:ro
+    depends_on:
+      - velociraptor-server
+    networks:
+      - dfir-network
+    restart: unless-stopped
+
+networks:
+  dfir-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+  redis-data:
+  iris-data:
+  velociraptor-data:

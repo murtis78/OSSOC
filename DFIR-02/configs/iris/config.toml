@@ -1,0 +1,119 @@
+# DFIR IRIS Configuration File
+
+[app]
+name = "DFIR IRIS"
+version = "2.4.0"
+debug = false
+secret_key = "your-super-secret-key-change-me-please-use-long-random-string"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+workers = 4
+timeout = 30
+max_content_length = 104857600  # 100MB
+
+[database]
+type = "postgresql"
+host = "iris-db"
+port = 5432
+name = "iris_db"
+user = "iris"
+password = "ChangeMe!"
+pool_size = 20
+pool_timeout = 30
+pool_recycle = 3600
+
+[redis]
+host = "iris-redis"
+port = 6379
+password = "ChangeMe!"
+db = 0
+socket_timeout = 5
+
+[security]
+password_policy = true
+min_password_length = 8
+require_uppercase = true
+require_lowercase = true
+require_numbers = true
+require_special_chars = true
+session_timeout = 3600
+max_login_attempts = 5
+lockout_duration = 900
+
+[ssl]
+enabled = false
+cert_file = "/opt/iris/certs/iris.crt"
+key_file = "/opt/iris/certs/iris.key"
+ca_file = "/opt/iris/certs/ca.crt"
+
+[logging]
+level = "INFO"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file = "/opt/iris/data/logs/iris.log"
+max_bytes = 10485760  # 10MB
+backup_count = 5
+
+[modules]
+enabled = true
+path = "/opt/iris/modules"
+auto_load = true
+
+[integrations]
+# Velociraptor Integration
+[integrations.velociraptor]
+enabled = true
+server = "velociraptor-server"
+port = 8080
+api_port = 8001
+username = "admin"
+password = "ChangeMe!"
+verify_ssl = false
+timeout = 30
+cert_file = "/opt/iris/certs/velociraptor-client.crt"
+key_file = "/opt/iris/certs/velociraptor-client.key"
+ca_file = "/opt/iris/certs/ca.crt"
+
+# MISP Integration
+[integrations.misp]
+enabled = false
+url = ""
+api_key = ""
+verify_ssl = true
+
+# TheHive Integration
+[integrations.thehive]
+enabled = false
+url = ""
+api_key = ""
+verify_ssl = true
+
+[notifications]
+enabled = true
+email_backend = "smtp"
+smtp_host = "localhost"
+smtp_port = 587
+smtp_user = ""
+smtp_password = ""
+smtp_tls = true
+
+[uploads]
+max_file_size = 104857600  # 100MB
+allowed_extensions = [
+    "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+    "jpg", "jpeg", "png", "gif", "bmp", "svg",
+    "zip", "rar", "7z", "tar", "gz",
+    "pcap", "pcapng", "cap",
+    "log", "csv", "json", "xml", "yaml", "yml"
+]
+upload_path = "/opt/iris/data/uploads"
+
+[artifacts]
+storage_path = "/opt/iris/data/artifacts"
+max_storage_size = 10737418240  # 10GB
+
+[cases]
+default_classification = "TLP:AMBER"
+auto_close_days = 90
+evidence_retention_days = 365

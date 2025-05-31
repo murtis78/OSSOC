@@ -1,0 +1,148 @@
+# Velociraptor Server Configuration
+
+version:
+  name: velociraptor
+  version: "0.7.0"
+  commit: HEAD
+  build_time: "2024-01-01T00:00:00Z"
+
+Client:
+  server_urls:
+    - https://velociraptor-server:8080/
+  ca_certificate: |
+    -----BEGIN CERTIFICATE-----
+    # CA Certificate will be generated during initialization
+    -----END CERTIFICATE-----
+  
+  nonce: "Replace with generated nonce"
+  
+  writeback_darwin: /opt/velociraptor/data/client.config.yaml.tmp
+  writeback_linux: /opt/velociraptor/data/client.config.yaml.tmp
+  writeback_windows: C:\Program Files\Velociraptor\client.config.yaml.tmp
+  
+  max_poll: 600
+  max_poll_std: 30
+
+API:
+  bind_address: 0.0.0.0
+  bind_port: 8001
+  bind_scheme: https
+  pinned_gw_name: GRPC_GW
+
+GUI:
+  bind_address: 0.0.0.0
+  bind_port: 8889
+  gw_certificate: |
+    -----BEGIN CERTIFICATE-----
+    # GUI Certificate will be generated during initialization
+    -----END CERTIFICATE-----
+  
+  gw_private_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    # GUI Private Key will be generated during initialization
+    -----END RSA PRIVATE KEY-----
+  
+  internal_cidr:
+    - 127.0.0.1/12
+    - 192.168.0.0/16
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - ::1/128
+    - fe80::/10
+    - fc00::/7
+  
+  reverse_proxy:
+    - route: "/app/"
+      url: "http://127.0.0.1:8889/app/"
+    
+  authenticator:
+    type: Basic
+    
+Frontend:
+  bind_address: 0.0.0.0
+  bind_port: 8080
+  certificate: |
+    -----BEGIN CERTIFICATE-----
+    # Frontend Certificate will be generated during initialization
+    -----END CERTIFICATE-----
+  
+  private_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    # Frontend Private Key will be generated during initialization
+    -----END RSA PRIVATE KEY-----
+  
+  dyn_dns:
+    hostname: velociraptor-server
+  
+  default_client_monitoring_artifacts:
+    - Generic.Client.Info
+    - Basic.Client.Stats
+    - Generic.Client.Stats
+
+Datastore:
+  implementation: FileBaseDataStore
+  location: /opt/velociraptor/data/datastore
+  filestore_directory: /opt/velociraptor/data/filestore
+
+Writeback:
+  private_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    # Writeback Private Key will be generated during initialization
+    -----END RSA PRIVATE KEY-----
+
+CA:
+  private_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    # CA Private Key will be generated during initialization
+    -----END RSA PRIVATE KEY-----
+
+Nanny:
+  service_name: velociraptor
+
+Logging:
+  output_directory: /opt/velociraptor/data/logs
+  separate_logs_per_component: true
+  rotation_time: 604800
+  max_age: 31536000
+
+Monitoring:
+  bind_address: 127.0.0.1
+  bind_port: 8003
+
+defaults:
+  hunt_expiry_hours: 168
+  notebook_cell_timeout_min: 10
+
+server_services:
+  - name: VelociraptorServer
+  - name: FrontendService
+  - name: GuiService
+  - name: ClientMonitoringService
+  - name: MonitoringService
+  - name: ApiService
+  - name: NotificationService
+  - name: InventoryService
+  - name: JournalService
+  - name: HuntService
+  - name: HuntDispatcherService
+  - name: RepositoryManagerService
+  - name: VFSService
+  - name: DynDNSService
+
+# IRIS Integration specific settings
+iris_integration:
+  enabled: true
+  iris_server: "iris-web"
+  iris_port: 8080
+  iris_api_key: "your-iris-api-key-here"
+  sync_artifacts: true
+  sync_hunts: true
+  webhook_url: "http://iris-web:8080/api/v1/webhooks/velociraptor"
+
+users:
+  - name: admin
+    password_hash: "$2a$10$UVZ8mBHRZJF9w8p8Y.t5mORvPXuI4K4vG2Q1Q9w9Q9Q9Q9Q9Q9Q"  # ChangeMe!
+    roles:
+      - administrator
+      - investigator
+      - analyst
