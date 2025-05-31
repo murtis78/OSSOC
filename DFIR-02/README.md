@@ -222,7 +222,7 @@ Ce projet est publié sous licence MIT. Les logiciels inclus gardent leurs licen
 ---
 
 **Version** : 1.0
-**Dernière mise à jour** : \$(date)
+**Dernière mise à jour** : 31/05/2025
 **Compatibilité** : IRIS 2.x, Velociraptor 0.7+, PostgreSQL 15+, Redis 7+
 
 ---
