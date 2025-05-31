@@ -1,0 +1,74 @@
+# Elasticsearch Configuration
+cluster.name: siem-cluster
+node.name: elasticsearch
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# Network
+network.host: 0.0.0.0
+http.port: 9200
+
+# Discovery
+discovery.type: single-node
+
+# Security
+xpack.security.enabled: true
+xpack.security.enrollment.enabled: true
+
+# SSL/TLS Configuration
+xpack.security.http.ssl:
+  enabled: true
+  key: certs/elasticsearch/elasticsearch.key
+  certificate: certs/elasticsearch/elasticsearch.crt
+  certificate_authorities: certs/ca/ca.crt
+
+xpack.security.transport.ssl:
+  enabled: true
+  key: certs/elasticsearch/elasticsearch.key
+  certificate: certs/elasticsearch/elasticsearch.crt
+  certificate_authorities: certs/ca/ca.crt
+  verification_mode: certificate
+
+# License
+xpack.license.self_generated.type: basic
+
+# Monitoring
+xpack.monitoring.collection.enabled: true
+
+# Machine Learning
+xpack.ml.enabled: true
+
+# Watcher
+xpack.watcher.enabled: true
+
+# Index lifecycle management
+xpack.ilm.enabled: true
+
+# Cross-cluster replication
+xpack.ccr.enabled: true
+
+# Snapshot lifecycle management
+xpack.slm.enabled: true
+
+# SQL
+xpack.sql.enabled: true
+
+# Rollup
+xpack.rollup.enabled: true
+
+# Transform
+xpack.transform.enabled: true
+
+# Fleet
+xpack.fleet.enabled: true
+
+# Memory settings
+bootstrap.memory_lock: true
+
+# Index settings for SIEM
+action.auto_create_index: >
+  .monitoring*,.watches,.triggered_watches,.watcher-history*,
+  .ml*,.transform*,.fleet*,.logs-*,.metrics-*,.synthetics-*,
+  logs-*,metrics-*,synthetics-*,traces-*,
+  winlogbeat-*,filebeat-*,metricbeat-*,packetbeat-*,
+  wazuh-alerts-*,wazuh-archives-*

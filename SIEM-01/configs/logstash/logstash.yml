@@ -1,0 +1,50 @@
+# Logstash Configuration
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Pipeline settings
+pipeline.workers: 2
+pipeline.batch.size: 1000
+pipeline.batch.delay: 50
+
+# Queue settings
+queue.type: memory
+queue.max_events: 0
+queue.max_bytes: 1gb
+
+# Dead letter queue
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# Monitoring
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: ["https://elasticsearch:9200"]
+xpack.monitoring.elasticsearch.username: logstash_system
+xpack.monitoring.elasticsearch.password: "${LOGSTASH_SYSTEM_PASSWORD}"
+xpack.monitoring.elasticsearch.ssl.certificate_authority: certs/ca/ca.crt
+xpack.monitoring.elasticsearch.ssl.verification_mode: certificate
+
+# Logging
+log.level: info
+path.logs: /usr/share/logstash/logs
+
+# Config reload
+config.reload.automatic: true
+config.reload.interval: 3s
+
+# Pipeline configuration
+path.config: /usr/share/logstash/pipeline
+config.string: ""
+config.test_and_exit: false
+config.reload.automatic: true
+config.reload.interval: 3s
+config.debug: false
+
+# Node settings
+node.name: logstash-siem
+
+# Data path
+path.data: /usr/share/logstash/data
+
+# Plugin settings
+path.plugins: /usr/share/logstash/plugins

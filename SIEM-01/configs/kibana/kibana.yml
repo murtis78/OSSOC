@@ -1,0 +1,160 @@
+# Kibana Configuration
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch connection
+elasticsearch.hosts: ["https://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "${KIBANA_SYSTEM_PASSWORD}"
+elasticsearch.ssl.certificateAuthorities: ["config/certs/ca/ca.crt"]
+elasticsearch.ssl.verificationMode: certificate
+
+# Encryption keys (change in production)
+xpack.encryptedSavedObjects.encryptionKey: "${XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY}"
+xpack.security.encryptionKey: "${XPACK_SECURITY_ENCRYPTIONKEY}"
+xpack.reporting.encryptionKey: "${XPACK_REPORTING_ENCRYPTIONKEY}"
+
+# Fleet configuration
+xpack.fleet.enabled: true
+xpack.fleet.agents.enabled: true
+
+# Fleet Server configuration
+xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch:9200"]
+xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server:8220"]
+
+# Fleet packages
+xpack.fleet.packages:
+  - name: system
+    version: latest
+  - name: elastic_agent
+    version: latest
+  - name: fleet_server
+    version: latest
+  - name: windows
+    version: latest
+  - name: log
+    version: latest
+
+# Fleet policies
+xpack.fleet.agentPolicies:
+  - name: "Fleet Server Policy"
+    id: fleet-server-policy
+    namespace: default
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: fleet_server-1
+        package:
+          name: fleet_server
+  - name: "Windows Agents Policy"
+    id: windows-policy
+    namespace: default
+    monitoring_enabled:
+      - logs
+      - metrics
+    package_policies:
+      - name: system-1
+        package:
+          name: system
+        inputs:
+          - type: system/metrics
+            enabled: true
+          - type: winlog
+            enabled: true
+            streams:
+              - id: winlog-system
+                data_stream:
+                  dataset: system.winlog
+                vars:
+                  channel: System
+              - id: winlog-application
+                data_stream:
+                  dataset: system.winlog
+                vars:
+                  channel: Application
+              - id: winlog-security
+                data_stream:
+                  dataset: system.winlog
+                vars:
+                  channel: Security
+              - id: winlog-powershell
+                data_stream:
+                  dataset: system.winlog
+                vars:
+                  channel: "Microsoft-Windows-PowerShell/Operational"
+
+# Security features
+xpack.security.enabled: true
+xpack.security.audit.enabled: true
+
+# Reporting
+xpack.reporting.enabled: true
+
+# Maps
+xpack.maps.enabled: true
+
+# Machine Learning
+xpack.ml.enabled: true
+
+# Canvas
+xpack.canvas.enabled: true
+
+# Graph
+xpack.graph.enabled: true
+
+# Watcher
+xpack.watcher.enabled: true
+
+# SIEM/Security Solution
+xpack.securitySolution.enabled: true
+xpack.securitySolution.defaultIndex:
+  - "winlogbeat-*"
+  - "filebeat-*"
+  - "wazuh-alerts-*"
+  - "logs-*"
+  - "endgame-*"
+  - ".siem-signals-*"
+
+# SIEM timeline
+xpack.securitySolution.signalsIndex: ".siem-signals-default"
+
+# Default space
+server.defaultRoute: "/app/security"
+
+# Logging
+logging.appenders:
+  file:
+    type: file
+    fileName: /usr/share/kibana/logs/kibana.log
+    layout:
+      type: json
+logging.root:
+  appenders: [default, file]
+  level: info
+
+# Monitoring
+monitoring.ui.enabled: true
+
+# Telemetry
+telemetry.enabled: false
+
+# Saved objects encryption
+server.uuid: "kibana-siem-server"
+
+# Session timeout (30 minutes)
+xpack.security.session.idleTimeout: "30m"
+
+# CSP settings for Fleet
+csp.rules:
+  - "script-src 'self' 'unsafe-eval'"
+  - "worker-src blob:"
+  - "child-src blob:"
+
+# Disable version check banner
+newsfeed.enabled: false
+
+# Memory circuit breaker
+ops.cGroupOverrides.cpuPath: /sys/fs/cgroup/cpu
+ops.cGroupOverrides.cpuAcctPath: /sys/fs/cgroup/cpuacct
