@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+  # MongoDB pour Graylog
+  mongodb:
+    image: mongo:7.0
+    container_name: siem-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - ./data/mongo:/data/db
+    networks:
+      - siem-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # OpenSearch
+  opensearch:
+    image: opensearchproject/opensearch:2.12.0
+    container_name: siem-opensearch
+    restart: unless-stopped
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PWD}
+      - plugins.security.ssl.transport.pemcert_filepath=certificates/opensearch.pem
+      - plugins.security.ssl.transport.pemkey_filepath=certificates/opensearch-key.pem
+      - plugins.security.ssl.transport.pemtrustedcas_filepath=certificates/root-ca.pem
+      - plugins.security.ssl.http.enabled=true
+      - plugins.security.ssl.http.pemcert_filepath=certificates/opensearch.pem
+      - plugins.security.ssl.http.pemkey_filepath=certificates/opensearch-key.pem
+      - plugins.security.ssl.http.pemtrustedcas_filepath=certificates/root-ca.pem
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./data/opensearch:/usr/share/opensearch/data
+      - ./configs/opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+      - ./certs:/usr/share/opensearch/config/certificates:ro
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - siem-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -XGET https://localhost:9200/_cluster/health?pretty -u admin:${OPENSEARCH_ADMIN_PWD} -k || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Wazuh Indexer
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.7.4
+    container_name: siem-wazuh-indexer
+    restart: unless-stopped
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.name=wazuh-cluster
+      - node.name=wazuh-indexer-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - plugins.security.ssl.http.enabled=true
+      - plugins.security.ssl.http.pemcert_filepath=certificates/wazuh-indexer.pem
+      - plugins.security.ssl.http.pemkey_filepath=certificates/wazuh-indexer-key.pem
+      - plugins.security.ssl.http.pemtrustedcas_filepath=certificates/root-ca.pem
+      - plugins.security.ssl.transport.pemcert_filepath=certificates/wazuh-indexer.pem
+      - plugins.security.ssl.transport.pemkey_filepath=certificates/wazuh-indexer-key.pem
+      - plugins.security.ssl.transport.pemtrustedcas_filepath=certificates/root-ca.pem
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./data/wazuh-indexer:/var/lib/wazuh-indexer
+      - ./certs:/usr/share/wazuh-indexer/certs:ro
+    ports:
+      - "9201:9200"
+    networks:
+      - siem-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -XGET https://localhost:9200/_cluster/health?pretty -u admin:admin -k || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Wazuh Manager
+  wazuh-manager:
+    image: wazuh/wazuh:4.7.4
+    container_name: siem-wazuh-manager
+    restart: unless-stopped
+    environment:
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=admin
+      - FILEBEAT_SSL_VERIFICATION_MODE=full
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat-key.pem
+      - API_USERNAME=${WAZUH_API_USER}
+      - API_PASSWORD=${WAZUH_API_PASS}
+    volumes:
+      - ./configs/wazuh/ossec.conf:/wazuh-config-mount/etc/ossec.conf
+      - ./data/wazuh:/var/ossec/data
+      - ./certs:/etc/ssl:ro
+    ports:
+      - "1514:1514/udp"
+      - "1515:1515"
+      - "55000:55000"
+    networks:
+      - siem-network
+    depends_on:
+      wazuh-indexer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "/var/ossec/bin/wazuh-control status | grep -q 'wazuh-manager is running' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Wazuh Dashboard
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.7.4
+    container_name: siem-wazuh-dashboard
+    restart: unless-stopped
+    environment:
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=admin
+      - WAZUH_API_URL=https://wazuh-manager
+      - DASHBOARD_USERNAME=${WAZUH_API_USER}
+      - DASHBOARD_PASSWORD=${WAZUH_API_PASS}
+      - API_USERNAME=${WAZUH_API_USER}
+      - API_PASSWORD=${WAZUH_API_PASS}
+    volumes:
+      - ./certs:/usr/share/wazuh-dashboard/certs:ro
+    ports:
+      - "443:5601"
+    networks:
+      - siem-network
+    depends_on:
+      wazuh-indexer:
+        condition: service_healthy
+      wazuh-manager:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -XGET https://localhost:5601/app/wazuh -k || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Graylog
+  graylog:
+    image: graylog/graylog:5.2
+    container_name: siem-graylog
+    restart: unless-stopped
+    environment:
+      # Configuration de base
+      - GRAYLOG_IS_MASTER=true
+      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://localhost:9000/
+      - GRAYLOG_ELASTICSEARCH_HOSTS=https://opensearch:9200
+      - GRAYLOG_ELASTICSEARCH_USERNAME=admin
+      - GRAYLOG_ELASTICSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PWD}
+      # Configuration MongoDB
+      - GRAYLOG_MONGODB_URI=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/graylog?authSource=admin
+      # Configuration TLS
+      - GRAYLOG_ELASTICSEARCH_DISABLE_VERSION_CHECK=true
+      - GRAYLOG_ELASTICSEARCH_VERSION=7
+      - GRAYLOG_ALLOW_HIGHLIGHTING=false
+      - GRAYLOG_ALLOW_LEADING_WILDCARD_SEARCHES=false
+    volumes:
+      - ./data/graylog:/usr/share/graylog/data
+      - ./configs/graylog/graylog.conf:/usr/share/graylog/data/config/graylog.conf:ro
+    ports:
+      - "9000:9000"
+      - "1514:1514/tcp"
+      - "5044:5044"
+      - "12201:12201/udp"
+    networks:
+      - siem-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/api || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  siem-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  wazuh-indexer-data:
+  opensearch-data:
+  graylog-data:
+  mongo-data:
