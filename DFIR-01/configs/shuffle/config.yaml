@@ -1,0 +1,172 @@
+# Shuffle 1.1.0 Configuration
+shuffle:
+  # Configuration de base
+  environment: "production"
+  debug: false
+  
+  # Configuration de la base de données
+  database:
+    type: "redis"
+    host: "redis"
+    port: 6379
+    password: "${SHUFFLE_REDIS_PASSWORD}"
+    database: 3
+    
+  # Configuration du serveur
+  server:
+    host: "0.0.0.0"
+    port: 3001
+    base_url: "http://localhost:3001"
+    
+  # Configuration de sécurité
+  security:
+    api_key: "${SHUFFLE_API_KEY}"
+    session_timeout: 3600
+    max_login_attempts: 5
+    encryption_key: "your-encryption-key-32-chars-long"
+    
+  # Configuration des webhooks
+  webhooks:
+    enabled: true
+    timeout: 30
+    max_retries: 3
+    
+    # Webhook pour TheHive
+    thehive:
+      url: "http://thehive:9000/api/webhook"
+      secret: "thehive-webhook-secret"
+      events: ["case", "alert", "task"]
+      
+    # Webhook pour Cortex
+    cortex:
+      url: "http://cortex:9001/api/webhook"
+      secret: "cortex-webhook-secret"
+      events: ["job", "analyzer"]
+
+  # Configuration des intégrations
+  integrations:
+    thehive:
+      enabled: true
+      url: "${SHUFFLE_THEHIVE_URL}"
+      api_key: "your-thehive-api-key"
+      verify_ssl: false
+      timeout: 60
+      
+      # Configuration des actions automatiques
+      auto_actions:
+        - trigger: "new_case"
+          workflow: "case_triage"
+        - trigger: "new_alert"
+          workflow: "alert_enrichment"
+          
+    cortex:
+      enabled: true
+      url: "${SHUFFLE_CORTEX_URL}"
+      api_key: "your-cortex-api-key"
+      verify_ssl: false
+      timeout: 120
+      
+      # Analyseurs préférés
+      preferred_analyzers:
+        - "File_Info_1_0"
+        - "VirusTotal_GetReport_3_0"
+        - "Yara_2_0"
+        - "MaxMind_GeoIP_4_0"
+
+  # Configuration des workflows
+  workflows:
+    default_timeout: 300
+    max_executions: 100
+    retention_days: 30
+    
+    # Workflows pré-configurés
+    templates:
+      case_triage:
+        name: "Case Triage Automation"
+        description: "Automatic triage of new cases"
+        triggers:
+          - type: "webhook"
+            source: "thehive"
+            event: "case_creation"
+        actions:
+          - name: "enrich_observables"
+            type: "cortex_analyzer"
+            analyzer: "VirusTotal_GetReport_3_0"
+          - name: "calculate_severity"
+            type: "custom_script"
+          - name: "assign_analyst"
+            type: "thehive_update"
+            
+      alert_enrichment:
+        name: "Alert Enrichment"
+        description: "Enrich alerts with threat intelligence"
+        triggers:
+          - type: "webhook"
+            source: "thehive"
+            event: "alert_creation"
+        actions:
+          - name: "geo_lookup"
+            type: "cortex_analyzer"
+            analyzer: "MaxMind_GeoIP_4_0"
+          - name: "reputation_check"
+            type: "cortex_analyzer"
+            analyzer: "OTXQuery_2_0"
+          - name: "update_alert"
+            type: "thehive_update"
+
+  # Configuration des notifications
+  notifications:
+    enabled: true
+    
+    # Email notifications
+    email:
+      enabled: false
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      username: "notifications@example.com"
+      password: "smtp-password"
+      
+    # Slack notifications
+    slack:
+      enabled: false
+      webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      channel: "#dfir-alerts"
+      
+    # Discord notifications
+    discord:
+      enabled: false
+      webhook_url: "https://discord.com/api/webhooks/YOUR/DISCORD/WEBHOOK"
+
+  # Configuration des logs
+  logging:
+    level: "INFO"
+    format: "json"
+    file: "/app/data/shuffle.log"
+    max_size: "100MB"
+    max_files: 5
+    
+  # Configuration des métriques
+  metrics:
+    enabled: true
+    prometheus:
+      enabled: false
+      port: 9090
+      path: "/metrics"
+
+# Configuration Docker
+docker:
+  # Socket Docker pour l'exécution des workflows
+  socket: "/var/run/docker.sock"
+  
+  # Configuration des conteneurs de workflows
+  containers:
+    memory_limit: "512m"
+    cpu_limit: "0.5"
+    network: "dfir-network"
+    
+    # Images autorisées
+    allowed_images:
+      - "alpine:latest"
+      - "python:3.9-alpine"
+      - "curlimages/curl:latest"
+      - "appropriate/curl:latest"

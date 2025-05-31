@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7.2
+    container_name: dfir-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - dfir-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  thehive:
+    image: thehiveproject/thehive:5.1
+    container_name: dfir-thehive
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - TH_SECRET=${THEHIVE_SECRET}
+      - TH_DB_PROVIDER=redis
+      - TH_DB_REDIS_HOST=redis
+      - TH_DB_REDIS_PORT=6379
+      - TH_DB_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - TH_NO_CONFIG_CORTEX=false
+      - TH_CORTEX_URL=http://cortex:9001
+      - TH_CORTEX_KEY=${CORTEX_API_KEY}
+    volumes:
+      - ./configs/thehive/application.conf:/etc/thehive/application.conf:ro
+      - ./data/thehive:/opt/thehive/data
+      - ./certs:/opt/thehive/certs:ro
+      - ./secrets:/opt/thehive/secrets:ro
+    networks:
+      - dfir-network
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cortex:
+    image: thehiveproject/cortex:3.1.10
+    container_name: dfir-cortex
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - CORTEX_SECRET=${CORTEX_SECRET}
+      - CORTEX_DB_PROVIDER=redis
+      - CORTEX_DB_REDIS_HOST=redis
+      - CORTEX_DB_REDIS_PORT=6379
+      - CORTEX_DB_REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - ./configs/cortex/application.conf:/etc/cortex/application.conf:ro
+      - ./data/cortex:/opt/cortex/data
+      - ./modules:/opt/cortex/modules
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dfir-network
+    ports:
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  shuffle:
+    image: frikky/shuffle:1.1.0
+    container_name: dfir-shuffle
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - thehive
+      - cortex
+    environment:
+      - SHUFFLE_REDIS_HOST=redis:6379
+      - SHUFFLE_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SHUFFLE_API_KEY=${SHUFFLE_API_KEY}
+      - SHUFFLE_THEHIVE_URL=http://thehive:9000
+      - SHUFFLE_CORTEX_URL=http://cortex:9001
+      - SHUFFLE_ENVIRONMENT=production
+      - SHUFFLE_BASE_URL=http://localhost:3001
+    volumes:
+      - ./configs/shuffle/config.yaml:/app/config.yaml:ro
+      - ./data/shuffle:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - dfir-network
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  dfir-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis_data:
+  thehive_data:
+  cortex_data:
+  shuffle_data:
