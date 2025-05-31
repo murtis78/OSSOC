@@ -385,5 +385,5 @@ Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.
 ---
 
 **Maintenu par** : Équipe CTIH  
-**Dernière mise à jour** : $(date +%Y-%m-%d)  
+**Dernière mise à jour** : 31/05/2025  
 **Version** : 1.0
