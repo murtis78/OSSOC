@@ -281,3 +281,43 @@ show_final_info() {
     echo ""
     echo "Identifiants initiaux :"
     echo "  Email: $ADMIN_EMAIL"
+    echo "  Mot de passe: $ADMIN_PASSWORD"
+    echo ""
+    echo "⚠️  Important :"
+    echo "- Changez immédiatement les identifiants par défaut"
+    echo "- Vérifiez que les ports 80, 443 et 81 sont accessibles"
+    echo "- Configurez votre DNS pour pointer vers ce serveur"
+    echo ""
+    echo "Scripts disponibles :"
+    echo "  ./start.sh       - Démarrer les services"
+    echo "  ./backup.sh      - Créer une sauvegarde"
+    echo "  ./check-ssl.sh   - Vérifier les certificats SSL"
+    echo ""
+    echo "Documentation complète dans README.md"
+}
+
+# Main function
+main() {
+    echo "========================================"
+    echo "  NGiNX Proxy Manager - Installation   "
+    echo "========================================"
+    echo ""
+    
+    print_status "Début de l'installation..."
+    print_status "Répertoire du projet: $PROJECT_DIR"
+    print_status "Email administrateur: $ADMIN_EMAIL"
+    echo ""
+    
+    check_dependencies
+    create_directory_structure
+    generate_env_file
+    generate_ssl_certificates
+    generate_utility_scripts
+    check_ports
+    
+    echo ""
+    show_final_info
+}
+
+# Exécution du script principal
+main "$@"
