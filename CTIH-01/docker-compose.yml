@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  # Redis pour OpenCTI
+  redis:
+    image: redis:7.2-alpine
+    container_name: ctih_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - ctih_network
+
+  # PostgreSQL pour OpenCTI
+  postgres:
+    image: postgres:15
+    container_name: ctih_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: opencti
+      POSTGRES_USER: opencti
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ctih_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opencti"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # OpenCTI Platform
+  opencti:
+    image: opencti/platform:5.12.4
+    container_name: ctih_opencti
+    restart: unless-stopped
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=8096
+      - APP__PORT=8080
+      - APP__BASE_URL=http://localhost:8080
+      - APP__ADMIN__EMAIL=${OPENCTI_ADMIN_EMAIL}
+      - APP__ADMIN__PASSWORD=${OPENCTI_ADMIN_PASSWORD}
+      - APP__ADMIN__TOKEN=${OPENCTI_SECRET}
+      - APP__APP_LOGS__LOGS_LEVEL=info
+      - REDIS__HOSTNAME=redis
+      - REDIS__PORT=6379
+      - ELASTICSEARCH__URL=http://elasticsearch:9200
+      - MINIO__ENDPOINT=minio
+      - MINIO__PORT=9000
+      - MINIO__USE_SSL=false
+      - MINIO__ACCESS_KEY=opencti
+      - MINIO__SECRET_KEY=${OPENCTI_SECRET}
+      - DATABASE__TYPE=postgresql
+      - DATABASE__HOSTNAME=postgres
+      - DATABASE__PORT=5432
+      - DATABASE__NAME=opencti
+      - DATABASE__USERNAME=opencti
+      - DATABASE__PASSWORD=${POSTGRES_PASSWORD}
+      - RABBITMQ__HOSTNAME=rabbitmq
+      - RABBITMQ__PORT=5672
+      - RABBITMQ__PORT_MANAGEMENT=15672
+      - RABBITMQ__MANAGEMENT_SSL=false
+      - RABBITMQ__USERNAME=guest
+      - RABBITMQ__PASSWORD=guest
+      - SMTP__HOSTNAME=localhost
+      - SMTP__PORT=25
+      - PROVIDERS__LOCAL__STRATEGY=LocalStrategy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/opencti:/opt/opencti/logs
+      - ./configs/opencti/docker.env:/opt/opencti/.env
+    depends_on:
+      - redis
+      - postgres
+      - elasticsearch
+      - minio
+      - rabbitmq
+    networks:
+      - ctih_network
+
+  # Elasticsearch pour OpenCTI
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ctih_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - ctih_network
+
+  # MinIO pour OpenCTI
+  minio:
+    image: minio/minio:latest
+    container_name: ctih_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: opencti
+      MINIO_ROOT_PASSWORD: ${OPENCTI_SECRET}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9001:9001"
+    networks:
+      - ctih_network
+
+  # RabbitMQ pour OpenCTI
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: ctih_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+    networks:
+      - ctih_network
+
+  # MISP
+  misp:
+    image: harvarditsecurity/misp:latest
+    container_name: ctih_misp
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      - MYSQL_HOST=misp_db
+      - MYSQL_DATABASE=misp
+      - MYSQL_USER=misp
+      - MYSQL_PASSWORD=${MISP_DB_PASSWORD}
+      - MISP_ADMIN_EMAIL=${OPENCTI_ADMIN_EMAIL}
+      - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_KEY}
+      - MISP_BASEURL=https://localhost
+      - TIMEZONE=Europe/Paris
+      - REDIS_FQDN=redis
+    volumes:
+      - ./data/misp:/var/www/MISP
+      - ./configs/misp/config.php:/var/www/MISP/app/Config/config.php
+      - ./certs:/etc/nginx/certs
+      - misp_logs:/var/log
+    depends_on:
+      - misp_db
+      - redis
+    networks:
+      - ctih_network
+
+  # MySQL pour MISP
+  misp_db:
+    image: mysql:8.0
+    container_name: ctih_misp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: misp
+      MYSQL_USER: misp
+      MYSQL_PASSWORD: ${MISP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MISP_DB_ROOT_PASSWORD}
+    volumes:
+      - misp_mysql_data:/var/lib/mysql
+    networks:
+      - ctih_network
+
+networks:
+  ctih_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  postgres_data:
+  elasticsearch_data:
+  minio_data:
+  rabbitmq_data:
+  misp_logs:
+  misp_mysql_data:
