@@ -336,5 +336,5 @@ docker-compose ps
 ---
 
 **Version** : 1.0  
-**Dernière mise à jour** : $(date)  
+**Dernière mise à jour** : 31/05/2025
 **Compatibilité** : TheHive 5.1, Cortex 3.1.10, Shuffle 1.1.0, Redis 7.2
