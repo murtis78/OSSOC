@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - '80:80'     # HTTP
+      - '443:443'   # HTTPS
+      - '81:81'     # Admin Web Interface
+    environment:
+      # Base de données SQLite
+      DB_SQLITE_FILE: ${DB_SQLITE_FILE}
+      # Désactiver IPv6 si nécessaire
+      DISABLE_IPV6: ${DISABLE_IPV6}
+      # Configuration initiale (optionnel)
+      NPM_INIT_EMAIL: ${NPM_INIT_EMAIL}
+      NPM_INIT_PWD: ${NPM_INIT_PWD}
+      # Timezone
+      TZ: Europe/Paris
+    volumes:
+      # Données persistantes
+      - ./data:/data
+      # Certificats Let's Encrypt
+      - ./certs:/etc/letsencrypt
+      # Configurations personnalisées
+      - ./configs/nginx-proxy-manager:/config
+      # Secrets et clés
+      - ./secrets:/secrets:ro
+    networks:
+      - npm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  npm-network:
+    driver: bridge
+    name: nginx-proxy-manager
+
+volumes:
+  npm-data:
+    driver: local

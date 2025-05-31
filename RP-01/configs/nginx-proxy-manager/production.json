@@ -1,0 +1,49 @@
+{
+  "database": {
+    "engine": "sqlite",
+    "filename": "/data/database.sqlite"
+  },
+  "logs": {
+    "level": "info",
+    "pretty": false
+  },
+  "security": {
+    "secret": "change-this-secret-key-to-something-secure",
+    "session_timeout": 3600
+  },
+  "ssl": {
+    "force_ssl": true,
+    "hsts": true,
+    "hsts_subdomains": true,
+    "hsts_preload": true,
+    "ssl_ciphers": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384",
+    "ssl_protocols": "TLSv1.2 TLSv1.3"
+  },
+  "letsencrypt": {
+    "email": "admin@example.com",
+    "staging": false,
+    "key_type": "ec256"
+  },
+  "nginx": {
+    "worker_processes": "auto",
+    "worker_connections": 1024,
+    "client_max_body_size": "100m",
+    "proxy_connect_timeout": "60s",
+    "proxy_send_timeout": "60s",
+    "proxy_read_timeout": "60s"
+  },
+  "rate_limiting": {
+    "enabled": true,
+    "requests_per_minute": 100
+  },
+  "monitoring": {
+    "enabled": true,
+    "health_check_interval": 30
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention_days": 30,
+    "path": "/data/backups"
+  }
+}
