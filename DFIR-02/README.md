@@ -55,12 +55,14 @@ chmod +x startup.sh
 ### Commandes principales
 
 ```bash
-./startup.sh start    # Démarrer la stack
-./startup.sh stop     # Stopper tous les services
-./startup.sh restart  # Redémarrer la stack
-./startup.sh status   # Voir le statut des services
-./startup.sh logs     # Voir les logs
-./startup.sh update   # Mettre à jour les images Docker
+./setup.sh          # Installation complète
+./setup.sh start     # Démarrer les services
+./setup.sh stop      # Arrêter les services
+./setup.sh restart   # Redémarrer
+./setup.sh status    # Voir le statut
+./setup.sh logs      # Logs en temps réel
+./setup.sh update    # Mettre à jour les images
+./setup.sh clean     # Nettoyage complet
 ```
 
 ---
