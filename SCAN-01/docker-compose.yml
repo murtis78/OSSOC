@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  openvas:
+    image: greenbone/openvas:22.4
+    container_name: openvas-scanner
+    hostname: openvas
+    restart: unless-stopped
+    ports:
+      - "9392:9392"  # GSA Web Interface
+      - "9390:9390"  # GMP Protocol
+    environment:
+      - OPENVAS_ADMIN_PASSWORD=${OPENVAS_ADMIN_PWD}
+      - OPENVAS_AUTO_SYNC=true
+      - OPENVAS_FEED_UPDATE=true
+      - OPENVAS_SCAN_TIMEOUT=86400
+    volumes:
+      - ./data/openvas:/var/lib/openvas
+      - ./data/openvas/reports:/var/lib/gvm/gvmd/report_formats
+      - ./configs/openvas/openvas.conf:/etc/openvas/openvas.conf:ro
+      - ./certs:/etc/ssl/certs/openvas:ro
+    networks:
+      - scan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9392"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  nmap-scanner:
+    build:
+      context: ./modules/nmap
+      dockerfile: Dockerfile
+    container_name: nmap-scanner
+    hostname: nmap
+    restart: unless-stopped
+    environment:
+      - NMAP_OUTPUT_DIR=/reports
+      - NMAP_DEFAULT_OPTS=-sS -O -A --script=vuln
+    volumes:
+      - ./data/nmap-reports:/reports
+      - ./configs/nmap:/etc/nmap:ro
+    networks:
+      - scan-network
+    command: tail -f /dev/null  # Keep container running
+
+  vulnwhisperer:
+    image: vulnwhisperer/vulnwhisperer:latest
+    container_name: vulnwhisperer
+    hostname: vulnwhisperer
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_URL=${VULNWHISPERER_ELASTIC}
+      - OPENVAS_HOST=openvas
+      - OPENVAS_PORT=9390
+      - OPENVAS_USER=admin
+      - OPENVAS_PASSWORD=${OPENVAS_ADMIN_PWD}
+      - SYNC_INTERVAL=3600
+    volumes:
+      - ./data/vulnwhisperer:/app/data
+      - ./data/openvas/reports:/openvas-reports:ro
+      - ./data/nmap-reports:/nmap-reports:ro
+      - ./configs/vulnwhisperer/config.ini:/app/config.ini:ro
+      - ./secrets:/app/secrets:ro
+    networks:
+      - scan-network
+    depends_on:
+      openvas:
+        condition: service_healthy
+    command: ["python", "/app/vulnwhisperer.py", "--config", "/app/config.ini"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-scan
+    hostname: redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - scan-network
+    command: redis-server --appendonly yes
+
+  scheduler:
+    image: alpine/curl:latest
+    container_name: scan-scheduler
+    hostname: scheduler
+    restart: unless-stopped
+    environment:
+      - OPENVAS_HOST=openvas
+      - SCAN_INTERVAL=${SCAN_INTERVAL:-21600}  # 6 heures par défaut
+    volumes:
+      - ./modules/scheduler:/scripts:ro
+    networks:
+      - scan-network
+    depends_on:
+      - openvas
+    command: ["/scripts/scheduler.sh"]
+
+networks:
+  scan-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  openvas-data:
+  vulnwhisperer-data:
+  nmap-reports:
+  redis-data:
