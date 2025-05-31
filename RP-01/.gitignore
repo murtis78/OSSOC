@@ -1,0 +1,56 @@
+# NGiNX Proxy Manager - Fichiers à ignorer
+
+# Données sensibles
+.env
+secrets/
+*.key
+*.crt
+*.p12
+*.pem
+
+# Données d'application
+data/
+certs/
+backups/
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Certificats Let's Encrypt (contient des données sensibles)
+certs/live/
+certs/archive/
+certs/renewal/
+
+# Base de données
+*.sqlite
+*.db
+
+# Fichiers de configuration avec mots de passe
+*_credentials.conf
+*_secrets.conf
